@@ -38,6 +38,8 @@ __version__ = "0.3.0"
 import os
 import re
 import logging
+import itertools
+import operator
 from glob import glob
 from datetime import datetime
 
@@ -149,6 +151,7 @@ class Item(str):
 
         return _isSibling
 
+
 class Sequence(list):
     """
     Extends list class with methods that handle item sequentialness.
@@ -200,6 +203,7 @@ class Sequence(list):
             'p': self._get_padding(),
             'r': self._get_framerange(missing=False),
             'R': self._get_framerange(missing=True),
+            'c': self._get_compressed_frames(),
             'h': self.head(),
             't': self.tail()
             }
@@ -246,7 +250,8 @@ class Sequence(list):
         +-----------+-------------------------------------+
         | ``%t``    | string after the sequence number    |
         +-----------+-------------------------------------+
-
+        | ``%c``    | compressed frames with padding      |
+        +-----------+-------------------------------------+
         :param format: Format string. Default is '%04l %h%p%t %R'.
 
         :return: Formatted string.
@@ -392,6 +397,19 @@ class Sequence(list):
             frange.append('%s-%s' % (str(start), str(end)))
         return ' '.join(frange)
 
+    def _get_compressed_frames(self):
+        out_str = ""
+        pad = self._get_padding()
+        frames = sorted([int(f.frame) for f in self if f.frame != ''])
+        for k, g in itertools.groupby(enumerate(frames), lambda (i, x): i-x):
+            m = map(operator.itemgetter(1), g)
+            if len(m) == 1:
+                out_str += pad % m[0] + ","
+            else:
+                out_str += (pad % m[0]) + "-" + (pad % m[-1]) + ","
+        frstr = out_str.rstrip(",")
+        return "[" + frstr + "]"
+
     def _get_frames(self):
         """finds the sequence indexes from item names"""
         return [f.frame for f in self if f.frame is not '']
@@ -402,6 +420,7 @@ class Sequence(list):
             frange = xrange(self.start(), self.end())
             return filter(lambda x: x not in self.frames(), frange)
         return ''
+
 
 def diff(f1, f2):
     """
@@ -510,7 +529,8 @@ def uncompress(seqstring, format=gFormat):
         'R': '[\d\s\-]+',
         'p': '%\d+d',
         'm': '\[.*\]',
-        'f': '\[.*\]'
+        'f': '\[.*\]',
+        'c': '\[(\d+(,|-|\]))+'
     }
 
     log.debug('format in: %s' % format)
@@ -567,13 +587,27 @@ def uncompress(seqstring, format=gFormat):
 
     except IndexError:
         try:
-            r = match.group('r')
-            log.debug('matched r: %s' % r)
-            s, e = r.split('-')
-            frames = range(int(s), int(e)+1)
+            c = match.group("c")
+            log.debug("match c")
+            number_groups = c.strip("[]").split(",")
+            for ng in number_groups:
+                if "-" in ng:
+                    splits = ng.split("-")
+                    start = int(splits[0])
+                    end = int(splits[1])
+                    frames.extend(range(start, end+1))
+                else:
+                    end = int(ng)
+                    frames.append(end)
         except IndexError:
-            s = match.group('s')
-            e = match.group('e')
+            try:
+                r = match.group('r')
+                log.debug('matched r: %s' % r)
+                s, e = r.split('-')
+                frames = range(int(s), int(e)+1)
+            except IndexError:
+                s = match.group('s')
+                e = match.group('e')
 
     try:
         frames = eval(match.group('f'))
