@@ -408,7 +408,10 @@ class Sequence(list):
             else:
                 out_str += (pad % m[0]) + "-" + (pad % m[-1]) + ","
         frstr = out_str.rstrip(",")
-        return "[" + frstr + "]"
+        if frstr:
+            return "[" + frstr + "]"
+        else:
+            return ""
 
     def _get_frames(self):
         """finds the sequence indexes from item names"""

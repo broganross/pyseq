@@ -11,6 +11,7 @@ import optparse
 import logging
 import pyseq
 
+
 def main():
     """
     Command-line interface.
@@ -35,8 +36,10 @@ Formatting options:
         %%p   padding, e.g. %%06d
         %%r   absolute range, start-end
         %%R   expanded range, start-end [missing]
+        %%c   All frame ranges comma separated, [01-10,15,20-25]
         %%h   string preceding sequence number
         %%t   string after the sequence number
+
 
     Format directives support padding, for example: "%%04l".
     """ % pyseq.gFormat
@@ -46,17 +49,33 @@ Formatting options:
                       help="format the output string")
     parser.add_option("-d", "--debug", dest="debug", action="store_true", default=False,
                       help="set logging level to debug (or $PYSEQ_LOG_LEVEL)")
+    parser.add_option("-w", "--walk", dest="walk", action="store_true", default=False,
+                      help="Walks the entire directory structure.")
+
     (options, args) = parser.parse_args()
 
     if options.debug:
         pyseq.log.setLevel(logging.DEBUG)
 
-    if len(args) == 0:
-        args = os.listdir(os.getcwd())
-    elif len(args) == 1 and os.path.isdir(args[0]):
-        args = os.listdir(args[0])
-    for seq in pyseq.getSequences(args):
-        print seq.format(options.format)
+    if options.walk is True:
+        if len(args) == 0:
+            start = os.getcwd()
+        elif len(args) == 1 and os.path.isdir(args[0]):
+            start = args[0]
+
+        for root, folds, files in os.walk(start):
+            print root
+            for seq in pyseq.getSequences(files):
+                print seq.format(options.format)
+    else:
+        if len(args) == 0:
+            args = os.listdir(os.getcwd())
+        elif len(args) == 1 and os.path.isdir(args[0]):
+            args = os.listdir(args[0])
+
+
+        for seq in pyseq.getSequences(args):
+            print seq.format(options.format)
     return 0
 
 if __name__ == '__main__':
