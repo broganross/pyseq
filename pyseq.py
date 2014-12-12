@@ -60,11 +60,14 @@ log = logging.getLogger('pyseq')
 log.addHandler(logging.StreamHandler())
 log.setLevel(int(os.environ.get('PYSEQ_LOG_LEVEL', logging.INFO)))
 
+
 class SequenceError(Exception):
     """special exception for sequence errors"""
 
+
 class FormatError(Exception):
     """special exception for seq format errors"""
+
 
 class Item(str):
     """Sequence member file class"""
@@ -97,7 +100,7 @@ class Item(str):
         return '<pyseq.Item "%s">' % self.name
 
     def __getattr__(self, key):
-        return getattr(self.item, key, None)
+        return getattr(self.item, key)
 
     def _get_path(self):
         return self.__path
@@ -215,7 +218,7 @@ class Sequence(list):
         return '<pyseq.Sequence "%s">' % str(self)
 
     def __getattr__(self, key):
-        return getattr(self[0], key, None)
+        return getattr(self[0], key)
 
     def __contains__(self, item):
         super(Sequence, self).__contains__(Item(item))
@@ -249,6 +252,8 @@ class Sequence(list):
         | ``%h``    | string preceding sequence number    |
         +-----------+-------------------------------------+
         | ``%t``    | string after the sequence number    |
+        +-----------+-------------------------------------+
+        | ``%c``    | range, comma separated 1-2,4-6      |
         +-----------+-------------------------------------+
         | ``%c``    | compressed frames with padding      |
         +-----------+-------------------------------------+
