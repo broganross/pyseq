@@ -1,6 +1,7 @@
 
 import os
 import sys
+import tempfile
 from unittest import TestCase
 
 import pyseq
@@ -10,6 +11,15 @@ from pyseq import SequenceError
 
 
 class ItemTestCase(TestCase):
+    def setUp(self):
+        self._rm_files = []
+
+    def tearDown(self):
+        for i in self._rm_files:
+            try:
+                os.remove(i)
+            except:
+                pass
 
     def test_init(self):
         i = Item("")
@@ -173,6 +183,38 @@ class ItemTestCase(TestCase):
             self.assertEqual(i.head, p[4])
             self.assertEqual(i.tail, p[5])
 
+    def test_exists(self):
+        i = Item("fname.002.ext")
+        self.assertFalse(i.exists())
+
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = os.path.join(tmp_dir, "fname.001.ext")
+        with open(tmp_path, "w") as f:
+            f.write("")
+        self._rm_files.append(tmp_path)
+        i = Item(tmp_path)
+        self.assertTrue(i.exists())
+
+    def test_reindex(self):
+        tmp_path = os.path.join(tempfile.gettempdir(), "fname.001.ext")
+        with open(tmp_path, "w") as f:
+            f.write("")
+        self._rm_files.append(tmp_path)
+
+        i = Item(tmp_path)
+        self.assertRaises(ValueError, i.reindex, 2)
+        i1 = Item(os.path.join(tempfile.gettempdir(), "fname.002.ext"))
+        i.isSibling(i1)
+        self.assertTrue(i.reindex(3))
+        self.assertFalse(os.path.exists(tmp_path))
+        new_path = os.path.join(tempfile.gettempdir(), "fname.003.ext")
+        self._rm_files.append(new_path)
+        self.assertTrue(os.path.exists(new_path))
+
+        self.assertTrue(i.reindex("01"))
+        self.assertTrue(os.path.exists(tmp_path))
+        self._rm_files.remove(new_path)
+
 
 class TestSequence(TestCase):
     def test_init(self):
@@ -214,3 +256,7 @@ class TestSequence(TestCase):
         ats = s.__attrs__()
         for k, v in ats.items():
             self.assertEqual(str(v), s.format("%" + k))
+
+    def test_length(self):
+        s = Sequence(["fname01.ext", "fname02.ext"])
+        self.assertEqual(len(s), 2)
