@@ -40,6 +40,7 @@ import re
 import logging
 import itertools
 import operator
+import shutil
 from glob import glob
 from datetime import datetime
 
@@ -121,7 +122,7 @@ class Item(str):
         return "".join(self.parts)
 
     def _set_readonly(self, value):
-        raise TypeError, 'Read-only attribute'
+        raise TypeError('Read-only attribute')
 
     # immutable properties
     path = property(_get_path, _set_readonly, doc="Item absolute path, if a filesystem item.")
@@ -153,6 +154,31 @@ class Item(str):
             item.tail = item.name[d[0]['end']:]
 
         return _isSibling
+
+    def exists(self):
+        return os.path.exists(self.__path)
+
+    def reindex(self, new_index):
+        if not self.frame:
+            raise ValueError("Cannot reindex item without frame.")
+        if isinstance(new_index, int):
+            new_index = str(new_index)
+
+        if len(new_index) != len(self.frame):
+            s = "%0" + str(len(self.frame)) + "d"
+            new_index = s % int(new_index)
+
+        full_name = self.head + new_index + self.tail
+        from_path = self.__path
+        to_path = os.path.join(self.__dirname, full_name)
+        shutil.move(from_path, to_path)
+
+        self.frame = new_index
+        self.__path = os.path.join(self.__dirname, full_name)
+        self.__filename = full_name
+        self.__digits = gDigitsRE.findall(self.name)
+        self.__parts = gDigitsRE.split(self.name)
+        return True
 
 
 class Sequence(list):
@@ -255,20 +281,18 @@ class Sequence(list):
         +-----------+-------------------------------------+
         | ``%c``    | range, comma separated 1-2,4-6      |
         +-----------+-------------------------------------+
-        | ``%c``    | compressed frames with padding      |
-        +-----------+-------------------------------------+
         :param format: Format string. Default is '%04l %h%p%t %R'.
 
         :return: Formatted string.
         """
         for m in gFormatRE.finditer(format):
-            _old = '%s%s' %(m.group('pad') or '', m.group('var'))
-            _new = '(%s)%ss' %(m.group('var'), m.group('pad') or '')
+            _old = '%s%s' % (m.group('pad') or '', m.group('var'))
+            _new = '(%s)%ss' % (m.group('var'), m.group('pad') or '')
             format = format.replace(_old, _new)
         try:
             return format % self.__attrs__()
-        except KeyError, e:
-            raise 
+        except KeyError:
+            raise
 
     def length(self):
         """:return: The length of the sequence."""
@@ -428,6 +452,9 @@ class Sequence(list):
             frange = xrange(self.start(), self.end())
             return filter(lambda x: x not in self.frames(), frange)
         return ''
+
+    def exists(self):
+        return all(map(lambda x: x.exists(), self))
 
 
 def diff(f1, f2):
