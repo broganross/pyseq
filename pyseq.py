@@ -246,6 +246,18 @@ class Sequence(list):
     def __getattr__(self, key):
         return getattr(self[0], key)
 
+    def __getitem__(self, key):
+        """ get the item by it's frame as a string,
+            or standard list
+        """
+        if isinstance(key, str):
+            m = [i for i in self if i.frame == key]
+            if len(m) != 1:
+                raise KeyError("Invalid key")
+            return m[0]
+        else:
+            return super(Sequence, self).__getitem__(key)
+
     def __contains__(self, item):
         super(Sequence, self).__contains__(Item(item))
 
@@ -455,6 +467,19 @@ class Sequence(list):
 
     def exists(self):
         return all(map(lambda x: x.exists(), self))
+
+    def reindex(self, frame_map):
+        """ Remap the frames
+            @param frame_map: list of tuples of old frame
+                              to new frame
+        """
+        # needs to handle forward and backward reindexing
+        # go in reverse order so that the frames don't
+        # over write each other
+        frame_map.sort(key=lambda x: x[0], reverse=True)
+        for src, dst in frame_map:
+            item = self[self._get_padding() % src]
+            item.reindex(dst)
 
 
 def diff(f1, f2):
